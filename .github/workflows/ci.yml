@@ -53,8 +53,6 @@ jobs:
           - jruby-10.0
           - truffleruby
         include:
-          - os: macos-latest
-            ruby: "4.0"
           - os: windows-latest
             ruby: "4.0"
     steps:
