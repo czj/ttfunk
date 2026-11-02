@@ -1,38 +1,36 @@
 # frozen_string_literal: true
 
-require_relative '../../reader'
-
 module TTFunk
   class Table
     class Kern
       # Format 0 kerning subtable.
       class Format0
-        include Reader
-
         # Subtable attributes.
         # @return [Hash{Symbol => any}]
         attr_reader :attributes
 
-        # Kerning pairs.
-        # @return [Hash{Array(Integer, Integer) => Integer}]
-        attr_reader :pairs
-
         # @param attributes [Hash{Symbol => any}]
         def initialize(attributes = {})
           @attributes = attributes
+          @data = attributes.delete(:data)
+        end
 
-          num_pairs, *pairs = attributes.delete(:data).unpack('nx6n*')
+        # Kerning pairs.
+        #
+        # Allocates one array per pair: prefer {#kerning_value} for lookups.
+        #
+        # @return [Hash{Array(Integer, Integer) => Integer}]
+        def pairs
+          @pairs ||= value_by_pair_key.transform_keys { |key| [key >> 16, key & 0xFFFF] }
+        end
 
-          @pairs = {}
-          num_pairs.times do |i|
-            # sanity check, in case there's a bad length somewhere
-            break if (i * 3) + 2 > pairs.length
-
-            left = pairs[i * 3]
-            right = pairs[(i * 3) + 1]
-            value = to_signed(pairs[(i * 3) + 2])
-            @pairs[[left, right]] = value
-          end
+        # Kerning value of a glyph pair.
+        #
+        # @param left [Integer] left glyph ID
+        # @param right [Integer] right glyph ID
+        # @return [Integer, nil] `nil` when the pair is not kerned
+        def kerning_value(left, right)
+          value_by_pair_key[(left << 16) | right]
         end
 
         # Is this vertical kerning?
@@ -55,20 +53,20 @@ module TTFunk
 
         # Recode this subtable using the specified mapping.
         #
-        # @param mapping [Hash{Integer => Integer}] keys are new glyph IDs,
-        #   values are old glyph IDs
+        # @param mapping [Hash{Integer => Integer}] keys are old glyph IDs,
+        #   values are new glyph IDs
         # @return [String]
         def recode(mapping)
           subset = []
-          pairs.each do |(left, right), value|
-            if mapping[left] && mapping[right]
-              subset << [mapping[left], mapping[right], value]
-            end
+          value_by_pair_key.each do |key, value|
+            left = mapping[key >> 16]
+            right = mapping[key & 0xFFFF]
+            subset.push(left, right, value) if left && right
           end
 
           return if subset.empty?
 
-          num_pairs = subset.length
+          num_pairs = subset.length / 3
           search_range = 2 * (2**Integer(Math.log(num_pairs) / Math.log(2)))
           entry_selector = Integer(Math.log(search_range / 2) / Math.log(2))
           range_shift = (2 * num_pairs) - search_range
@@ -81,8 +79,29 @@ module TTFunk
             search_range,
             entry_selector,
             range_shift,
-            subset,
-          ].flatten.pack('n*')
+            *subset,
+          ].pack('n*')
+        end
+
+        private
+
+        # A pair record is a big-endian uint32 key (`left << 16 | right`)
+        # followed by an int16 value, so `Ns>` reads it ready to use.
+        def value_by_pair_key
+          @value_by_pair_key ||=
+            begin
+              # sanity check, in case there's a bad length somewhere
+              num_pairs = [@data.unpack1('n'), (@data.bytesize - 8) / 6].min
+              keys_and_values = @data.unpack("@8#{'Ns>' * num_pairs}")
+
+              # 2026-11-02: Hash[*keys_and_values] is 1.8x faster, but overflows
+              # the stack on Ruby < 3.3 with 65535 pairs
+              value_by_pair_key = {}
+              (0...keys_and_values.length).step(2) do |index|
+                value_by_pair_key[keys_and_values[index]] = keys_and_values[index + 1]
+              end
+              value_by_pair_key
+            end
         end
       end
     end

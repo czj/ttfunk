@@ -7,7 +7,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changes
+
+* `kern` format 0 subtables are parsed on first use, 5 to 25 times faster
+
+  `Kern::Format0#kerning_value(left, right)` looks up a single pair without
+  allocating the `[left, right]` arrays that `#pairs` keys on.
+
+  Clément Joubert, after Robert Mosolgo's #97
+
 ### Fixed
+
+* Crash on a `kern` format 0 subtable ending with a truncated pair record
+
+  Clément Joubert
 
 * `maxp` table encoding
 
