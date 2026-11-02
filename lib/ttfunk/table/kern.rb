@@ -17,8 +17,8 @@ module TTFunk
       # Encode table.
       #
       # @param kerning [TTFunk::Table::Kern]
-      # @param mapping [Hash{Integer => Integer}] keys are new glyph IDs, values
-      #   are old glyph IDs
+      # @param mapping [Hash{Integer => Integer}] keys are old glyph IDs, values
+      #   are new glyph IDs
       # @return [String, nil]
       def self.encode(kerning, mapping)
         return unless kerning.exists? && kerning.tables.any?
