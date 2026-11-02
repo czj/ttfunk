@@ -92,7 +92,15 @@ module TTFunk
             begin
               # sanity check, in case there's a bad length somewhere
               num_pairs = [@data.unpack1('n'), (@data.bytesize - 8) / 6].min
-              Hash[*@data.unpack("@8#{'Ns>' * num_pairs}")]
+              keys_and_values = @data.unpack("@8#{'Ns>' * num_pairs}")
+
+              # 2026-11-02: Hash[*keys_and_values] is 1.8x faster, but overflows
+              # the stack on Ruby < 3.3 with 65535 pairs
+              value_by_pair_key = {}
+              (0...keys_and_values.length).step(2) do |index|
+                value_by_pair_key[keys_and_values[index]] = keys_and_values[index + 1]
+              end
+              value_by_pair_key
             end
         end
       end

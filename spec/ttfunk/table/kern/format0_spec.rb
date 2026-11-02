@@ -36,7 +36,7 @@ RSpec.describe TTFunk::Table::Kern::Format0 do
 
     it 'matches every record of a real font' do
       font = TTFunk::File.open(test_font('DejaVuSans'))
-      num_pairs = font.kerning.raw.unpack1('n', offset: 10)
+      num_pairs = font.kerning.raw[10, 2].unpack1('n')
       records = font.kerning.raw.unpack("@18#{'nns>' * num_pairs}").each_slice(3)
       expected = records.to_h { |left, right, value| [[left, right], value] }
 
