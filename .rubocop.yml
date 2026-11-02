@@ -1,6 +1,13 @@
 inherit_gem:
   prawn-dev: rubocop.yml
 
+AllCops:
+  inherit_mode:
+    merge:
+      - Exclude
+  Exclude:
+    - vendor/**/*
+
 RSpec/MultipleMemoizedHelpers:
   Max: 7
   Exclude:
